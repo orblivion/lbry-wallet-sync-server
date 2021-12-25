@@ -1,46 +1,20 @@
-package main
+package store
 
 import (
-	"io/ioutil"
-	"os"
+	"orblivion/lbry-id/auth"
 	"reflect"
 	"testing"
 	"time"
 )
 
-func storeTestInit(t *testing.T) (s Store, tmpFile *os.File) {
-	s = Store{}
-
-	tmpFile, err := ioutil.TempFile(os.TempDir(), "sqlite-test-")
-	if err != nil {
-		t.Fatalf("DB setup failure: %+v", err)
-		return
-	}
-
-	s.Init(tmpFile.Name())
-
-	err = s.Migrate()
-	if err != nil {
-		t.Fatalf("DB setup failure: %+v", err)
-	}
-
-	return
-}
-
-func storeTestCleanup(tmpFile *os.File) {
-	if tmpFile != nil {
-		os.Remove(tmpFile.Name())
-	}
-}
-
 // Test insertToken, using GetToken as a helper
 // Try insertToken twice with the same public key, error the second time
 func TestStoreInsertToken(t *testing.T) {
 
-	s, tmpFile := storeTestInit(t)
-	defer storeTestCleanup(tmpFile)
+	s, tmpFile := StoreTestInit(t)
+	defer StoreTestCleanup(tmpFile)
 
-	authToken1 := AuthToken{
+	authToken1 := auth.AuthToken{
 		Token:    "seekrit-1",
 		DeviceID: "dID",
 		Scope:    "*",
@@ -56,8 +30,8 @@ func TestStoreInsertToken(t *testing.T) {
 
 	// Get a token, come back empty
 	gotToken, err := s.GetToken(authToken1.PubKey, authToken1.DeviceID)
-	if gotToken != nil || err != nil {
-		t.Fatalf("Expected no token and no error. token: %+v err: %+v", gotToken, err)
+	if gotToken != nil || err != ErrNoToken {
+		t.Fatalf("Expected ErrNoToken. token: %+v err: %+v", gotToken, err)
 	}
 
 	// Put in a token
@@ -71,7 +45,7 @@ func TestStoreInsertToken(t *testing.T) {
 		t.Fatalf("Unexpected error in GetToken: %+v", err)
 	}
 	if gotToken == nil || !reflect.DeepEqual(*gotToken, authToken1DB) {
-		t.Fatalf("token: expected %+v, got: %+v", authToken1DB, gotToken)
+		t.Fatalf("token: \n  expected %+v\n  got:     %+v", authToken1DB, *gotToken)
 	}
 
 	// Try to put a different token, fail becaues we already have one
@@ -94,10 +68,10 @@ func TestStoreInsertToken(t *testing.T) {
 // Try updateToken with a preexisting token, succeed
 // Try updateToken again with a new token, succeed
 func TestStoreUpdateToken(t *testing.T) {
-	s, tmpFile := storeTestInit(t)
-	defer storeTestCleanup(tmpFile)
+	s, tmpFile := StoreTestInit(t)
+	defer StoreTestCleanup(tmpFile)
 
-	authToken1 := AuthToken{
+	authToken1 := auth.AuthToken{
 		Token:    "seekrit-1",
 		DeviceID: "dID",
 		Scope:    "*",
@@ -112,8 +86,8 @@ func TestStoreUpdateToken(t *testing.T) {
 
 	// Try to get a token, come back empty because we're just starting out
 	gotToken, err := s.GetToken(authToken1.PubKey, authToken1.DeviceID)
-	if gotToken != nil || err != nil {
-		t.Fatalf("Expected no token and no error. token: %+v err: %+v", gotToken, err)
+	if gotToken != nil || err != ErrNoToken {
+		t.Fatalf("Expected ErrNoToken. token: %+v err: %+v", gotToken, err)
 	}
 
 	// Try to update the token - fail because we don't have an entry there in the first place
@@ -123,8 +97,8 @@ func TestStoreUpdateToken(t *testing.T) {
 
 	// Try to get a token, come back empty because the update attempt failed to do anything
 	gotToken, err = s.GetToken(authToken1.PubKey, authToken1.DeviceID)
-	if gotToken != nil || err != nil {
-		t.Fatalf("Expected no token and no error. token: %+v err: %+v", gotToken, err)
+	if gotToken != nil || err != ErrNoToken {
+		t.Fatalf("Expected ErrNoToken. token: %+v err: %+v", gotToken, err)
 	}
 
 	// Put in a token - just so we have something to test updateToken with
@@ -155,11 +129,11 @@ func TestStoreUpdateToken(t *testing.T) {
 // Put token2-d1 token2-d2
 // Get token2-d1 token2-d2
 func TestStoreSaveToken(t *testing.T) {
-	s, tmpFile := storeTestInit(t)
-	defer storeTestCleanup(tmpFile)
+	s, tmpFile := StoreTestInit(t)
+	defer StoreTestCleanup(tmpFile)
 
 	// Version 1 of the token for both devices
-	authToken_d1_1 := AuthToken{
+	authToken_d1_1 := auth.AuthToken{
 		Token:    "seekrit-d1-1",
 		DeviceID: "dID-1",
 		Scope:    "*",
@@ -179,12 +153,12 @@ func TestStoreSaveToken(t *testing.T) {
 
 	// Try to get the tokens, come back empty because we're just starting out
 	gotToken, err := s.GetToken(authToken_d1_1.PubKey, authToken_d1_1.DeviceID)
-	if gotToken != nil || err != nil {
-		t.Fatalf("Expected no token and no error. token: %+v err: %+v", gotToken, err)
+	if gotToken != nil || err != ErrNoToken {
+		t.Fatalf("Expected ErrNoToken. token: %+v err: %+v", gotToken, err)
 	}
 	gotToken, err = s.GetToken(authToken_d2_1.PubKey, authToken_d2_1.DeviceID)
-	if gotToken != nil || err != nil {
-		t.Fatalf("Expected no token and no error. token: %+v err: %+v", gotToken, err)
+	if gotToken != nil || err != ErrNoToken {
+		t.Fatalf("Expected ErrNoToken. token: %+v err: %+v", gotToken, err)
 	}
 
 	// Save Version 1 tokens for both devices
@@ -264,11 +238,11 @@ func timePtr(t time.Time) *time.Time {
 // not found for device (one for another device does exist)
 // expired token not returned
 func TestStoreGetToken(t *testing.T) {
-	s, tmpFile := storeTestInit(t)
-	defer storeTestCleanup(tmpFile)
+	s, tmpFile := StoreTestInit(t)
+	defer StoreTestCleanup(tmpFile)
 
 	// created for addition to the DB (no expiration attached)
-	authToken := AuthToken{
+	authToken := auth.AuthToken{
 		Token:    "seekrit-d1",
 		DeviceID: "dID",
 		Scope:    "*",
@@ -281,8 +255,8 @@ func TestStoreGetToken(t *testing.T) {
 
 	// Not found (nothing saved for this pubkey)
 	gotToken, err := s.GetToken(authToken.PubKey, authToken.DeviceID)
-	if gotToken != nil || err != nil {
-		t.Fatalf("Expected no token and no error. token: %+v err: %+v", gotToken, err)
+	if gotToken != nil || err != ErrNoToken {
+		t.Fatalf("Expected ErrNoToken. token: %+v err: %+v", gotToken, err)
 	}
 
 	// Put in a token
@@ -301,8 +275,8 @@ func TestStoreGetToken(t *testing.T) {
 
 	// Fail to get for another device
 	gotToken, err = s.GetToken(authToken.PubKey, "other-device")
-	if gotToken != nil || err != nil {
-		t.Fatalf("Expected no token and no error for nonexistent device. token: %+v err: %+v", gotToken, err)
+	if gotToken != nil || err != ErrNoToken {
+		t.Fatalf("Expected ErrNoToken for nonexistent device. token: %+v err: %+v", gotToken, err)
 	}
 
 	// Update the token to be expired
@@ -313,8 +287,8 @@ func TestStoreGetToken(t *testing.T) {
 
 	// Fail to get the expired token
 	gotToken, err = s.GetToken(authToken.PubKey, authToken.DeviceID)
-	if gotToken != nil || err != nil {
-		t.Fatalf("Expected no token and no error, for expired token. token: %+v err: %+v", gotToken, err)
+	if gotToken != nil || err != ErrNoToken {
+		t.Fatalf("Expected ErrNoToken, for expired token. token: %+v err: %+v", gotToken, err)
 	}
 }
 
@@ -326,4 +300,73 @@ func TestStoreSanitizeEmptyFields(t *testing.T) {
 func TestStoreTimeZones(t *testing.T) {
 	// Make sure the tz situation is as we prefer in the DB. Probably just do UTC.
 	t.Fatalf("Test me")
+}
+
+func TestStoreSaveWalletSuccess(t *testing.T) {
+	/*
+	  Sequence 1 - works via insert
+	  Sequence 2 - works via update
+	  Sequence 3 - works via update
+	*/
+	t.Fatalf("Test me: Wallet Store successes")
+}
+
+func TestStoreSaveWalletFail(t *testing.T) {
+	/*
+	  Sequence 1 - fails via insert - fail by having something there already
+	  Sequence 2 - fails via update - fail by not having something there already
+	  Sequence 3 - fails via update - fail by having something with wrong sequence number
+	  Sequence 4 - fails via update - fail by having something with non-matching device sequence history
+
+	  Maybe some of the above gets put off to wallet util
+	*/
+	t.Fatalf("Test me: Wallet Store failures")
+}
+
+func TestStoreInsertWalletSuccess(t *testing.T) {
+	t.Fatalf("Test me: Wallet insert successes")
+}
+
+func TestStoreInsertWalletFail(t *testing.T) {
+	t.Fatalf("Test me: Wallet insert failures")
+}
+
+func TestStoreUpdateWalletSuccess(t *testing.T) {
+	t.Fatalf("Test me: Wallet update successes")
+}
+
+func TestStoreUpdateWalletFail(t *testing.T) {
+	t.Fatalf("Test me: Wallet update failures")
+}
+
+func TestStoreGetWalletSuccess(t *testing.T) {
+	t.Fatalf("Test me: Wallet get success")
+}
+
+func TestStoreGetWalletFail(t *testing.T) {
+	t.Fatalf("Test me: Wallet get failures")
+}
+
+func TestStoreGetDownloadKeySuccess(t *testing.T) {
+	t.Fatalf("Test me: Wallet get success")
+}
+
+func TestStoreGetDownloadKeyFail(t *testing.T) {
+	t.Fatalf("Test me: Wallet get failures")
+}
+
+func TestStoreSetEmailSuccess(t *testing.T) {
+	t.Fatalf("Test me: Wallet get success")
+}
+
+func TestStoreSetEmailFail(t *testing.T) {
+	t.Fatalf("Test me: Wallet get failures")
+}
+
+func TestStoreGetPublicKeySuccess(t *testing.T) {
+	t.Fatalf("Test me: Wallet get success")
+}
+
+func TestStoreGetPublicKeyFail(t *testing.T) {
+	t.Fatalf("Test me: Wallet get failures")
 }
