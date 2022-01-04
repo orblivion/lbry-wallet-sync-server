@@ -150,8 +150,8 @@ class Client():
 
   def post_wallet_state(self):
     # Create a *new* wallet state, indicating that it was last updated by this
-    # device, with the updated sequence, and include our local changes.
-    # Don't set it to our own wallet_state until we know that it's accepted by
+    # device, with the updated sequence, and include our local encrypted wallet changes.
+    # Don't set self.wallet_state to this until we know that it's accepted by
     # the server.
     if self.wallet_state:
       submitted_wallet_state = {
