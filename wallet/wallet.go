@@ -3,6 +3,7 @@ package wallet
 // Currently a small package but given other packages it makes imports easier.
 // Also this might grow substantially over time
 
+// For test stubs
 type WalletUtilInterface interface {
 	ValidateWalletState(walletState *WalletState) bool
 }
@@ -25,7 +26,8 @@ func (wu *WalletUtil) ValidateWalletState(walletState *WalletState) bool {
 	return true
 }
 
-// Assumptions: `ws` has been validated, rather than having a return value
+// Assumptions: `ws` has been validated
+// Avoid having to check for error
 func (ws *WalletState) Sequence() int {
 	return ws.LastSynced[ws.DeviceID]
 }

@@ -22,6 +22,7 @@ type AuthScope string
 const ScopeFull = AuthScope("*")
 const ScopeGetWalletState = AuthScope("get-wallet-state")
 
+// For test stubs
 type AuthInterface interface {
 	NewToken(pubKey PublicKey, DeviceID string, Scope AuthScope) (*AuthToken, error)
 	IsValidSignature(pubKey PublicKey, payload string, signature Signature) bool

@@ -16,4 +16,4 @@ func TestWalletValidateWalletState(t *testing.T) {
 	t.Fatalf("Test me: Implement and test validateWalletState.")
 }
 
-// TODO - other wallet integrity stuff? particularly related to seuence?
+// TODO - other wallet integrity stuff? particularly related to sequence?

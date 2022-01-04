@@ -17,7 +17,6 @@ const PathAuthTokenGetWalletState = "/auth/get-wallet-state"
 const PathRegister = "/signup"
 const PathWalletState = "/wallet-state"
 
-// Server: The interface definition for the Server module
 type Server struct {
 	auth       auth.AuthInterface
 	store      store.StoreInterface

@@ -26,6 +26,7 @@ var (
 	ErrNoPubKey = fmt.Errorf("Public Key not found with these credentials")
 )
 
+// For test stubs
 type StoreInterface interface {
 	SaveToken(*auth.AuthToken) error
 	GetToken(auth.PublicKey, string) (*auth.AuthToken, error)
