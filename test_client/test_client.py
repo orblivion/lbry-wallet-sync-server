@@ -113,8 +113,6 @@ class Client():
     print ("Got auth token: ", self.auth_token)
 
   def get_wallet_state(self):
-    # A new wallet state, last updated by this device, with the updated sequence.
-    # Don't set it to our own wallet_state just yet because we don't know if it will accept the new sequence number.
     params = {
       'token': self.auth_token,
       'publicKey': self.public_key,
@@ -151,8 +149,10 @@ class Client():
     print ("Got latest walletState: ", self.wallet_state)
 
   def post_wallet_state(self):
-    # A new wallet state, last updated by this device, with the updated sequence.
-    # Don't set it to our own wallet_state just yet because we don't know if it will accept the new sequence number.
+    # Create a *new* wallet state, indicating that it was last updated by this
+    # device, with the updated sequence, and include our local changes.
+    # Don't set it to our own wallet_state until we know that it's accepted by
+    # the server.
     if self.wallet_state:
       submitted_wallet_state = {
         "deviceId": self.device_id,
